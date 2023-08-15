@@ -96,3 +96,33 @@ type Attachment struct {
 
 	Ts json.Number `json:"ts,omitempty"`
 }
+
+func (a *Attachment) MarshalJSON() ([]byte, error) {
+	// alias Attachment to JSONAttachment to avoid a MarshalJSON infinite loop
+	type JSONAttachment Attachment
+
+	// if a.Blocks...
+	if a.Blocks.BlockSet != nil {
+		return json.Marshal((*JSONAttachment)(a))
+	}
+
+	// if we get here, it means a.Blocks was not specified. In this case, either
+	// a.Text or a.Fallback must be specified, so we allow an empty string for
+	// both
+
+	s := &struct {
+		Text     string `json:"text"`
+		Fallback string `json:"fallback"`
+		// the API allows `blocks` to be nil, but for tidiness, we'll omit it
+		// entirely
+		Blocks interface{} `json:"blocks,omitempty"`
+		*JSONAttachment
+	}{
+		Text:           a.Text,
+		Fallback:       a.Fallback,
+		Blocks:         nil,
+		JSONAttachment: (*JSONAttachment)(a),
+	}
+
+	return json.Marshal(s)
+}
